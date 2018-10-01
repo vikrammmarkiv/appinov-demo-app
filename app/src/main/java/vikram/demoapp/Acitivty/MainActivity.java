@@ -16,7 +16,7 @@ import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Toast;
+import android.widget.TextView;
 
 import java.io.File;
 import java.io.IOException;
@@ -40,6 +40,7 @@ public class MainActivity extends AppCompatActivity {
     ImagesViewAdapter imAdapter;
     AlertDialog.Builder builder;
     private BottomNavigationView navigation;
+    private TextView emptyText;
 
     private BottomNavigationView.OnNavigationItemSelectedListener mOnNavigationItemSelectedListener
             = new BottomNavigationView.OnNavigationItemSelectedListener() {
@@ -76,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
         navigation.setOnNavigationItemSelectedListener(mOnNavigationItemSelectedListener);
         navigation.setSelectedItemId(R.id.task1);
 
+        emptyText = findViewById(R.id.emptyText);
         cameraButton = findViewById(R.id.cameraButton);
         cameraButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -91,6 +93,8 @@ public class MainActivity extends AppCompatActivity {
             imagePaths.addAll(set);
         imAdapter = new ImagesViewAdapter(this,imagePaths);
         imagesView.setAdapter(imAdapter);
+        if (imAdapter.getItemCount()>0)
+            emptyText.setVisibility(View.GONE);
 
         final CharSequence[] options = { getString(R.string.take_photo), getString(R.string.choose_from_gallery),getString(R.string.cancel) };
         builder = new AlertDialog.Builder(MainActivity.this);
@@ -105,6 +109,7 @@ public class MainActivity extends AppCompatActivity {
                 else if (options[item].equals(getString(R.string.choose_from_gallery)))
                 {
                     Intent intent = new Intent(Intent.ACTION_PICK,android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+                    intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
                     startActivityForResult(intent, REQUEST_IMAGE_GALLERY);
                 }
                 else if (options[item].equals(getString(R.string.cancel))) {
@@ -122,12 +127,21 @@ public class MainActivity extends AppCompatActivity {
             imAdapter.notifyItemInserted(imagePaths.size()-1);
         }
         else if (requestCode == REQUEST_IMAGE_GALLERY && resultCode == RESULT_OK) {
-            if (data.getData()!=null) {
+            if(data.getClipData() != null) {
+                int count = data.getClipData().getItemCount();
+                for(int i = 0; i < count; i++)
+                    imagePaths.add(data.getClipData().getItemAt(i).getUri().toString());
+                imAdapter.notifyDataSetChanged();
+            }
+            else if (data.getData()!=null) {
                 imagePaths.add(data.getData().toString());
                 imAdapter.notifyItemInserted(imagePaths.size()-1);
             }
         }
-        }
+        if (imAdapter.getItemCount()>0)
+            emptyText.setVisibility(View.GONE);
+        imagesView.smoothScrollToPosition(imAdapter.getItemCount());
+    }
 
     private void dispatchTakePictureIntent() {
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
